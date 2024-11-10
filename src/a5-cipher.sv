@@ -8,61 +8,57 @@ module cipher #(
     parameter SYNCBIT1 = 8,
     parameter SYNCBIT2 = 10,
     parameter SYNCBIT3 = 10,
+    parameter FRAMENUMLEN = 22,
+    parameter KEYLEN = 64,
     parameter CHUNKLEN = 114,
     parameter COUNTERLEN = 32
 ) (
-    input [COUNTERLEN - 1:0] current, 
-    input [REG1LEN - 1:0] R1,
-    input [REG2LEN - 1:0] R2,
-    input [REG3LEN - 1:0] R3,
-    input [CHUNKLEN - 1:0] in,
+    input in,
+    input [FRAMENUMLEN + KEYLEN - 1:0] seq,
     input clock,
     input control,
-    output reg [CHUNKLEN - 1:0] out
+    input reset,
+    output reg out
 );
-    wire gamma;
     reg next_clock;
+
     wire F;
+    wire gamma;
+    wire outR1;
+    wire outR2;
+    wire outR3;
 
     rcloss #(.FEEDBACK(MASK1), .REGLEN(REG1LEN), .SYNCBITPOS(SYNCBIT1)) loss1 (
-        .register_in(R1),
-        .F(F),
+        .seq(seq),
         .clock(next_clock),
-        .register_out(R1)
+        .reset(reset),
+        .exposed(outR1)
     );
 
     rcloss #(.FEEDBACK(MASK2), .REGLEN(REG2LEN), .SYNCBITPOS(SYNCBIT2)) loss2 (
-        .register_in(R2),
-        .F(F),
+        .seq(seq),
         .clock(next_clock),
-        .register_out(R2)
+        .reset(reset),
+        .exposed(outR2)
     );
 
     rcloss #(.FEEDBACK(MASK3), .REGLEN(REG3LEN), .SYNCBITPOS(SYNCBIT3)) loss3 (
-        .register_in(R3),
-        .F(F),
+        .seq(seq),
         .clock(next_clock),
-        .register_out(R3)
+        .reset(reset),
+        .exposed(outR3)
     );
 
-    assign gamma = R1[REG1LEN - 1] ^ R2[REG2LEN - 1] ^ R3[REG3LEN - 1];
-    assign F = R1[SYNCBIT1] & R2[SYNCBIT2] | R1[SYNCBIT1] & R3[SYNCBIT3] | R2[SYNCBIT2] & R3[SYNCBIT3];
+    assign gamma = outR1 ^ outR2 ^ outR3;
+    assign F = outR1 & outR2 | outR1 & outR3 | outR2 & outR3;
 
     always @ (clock) begin
         next_clock = 0;
     end
 
-    generate
-        genvar i;
-        for (i = 0; i < CHUNKLEN; i = i + 1) begin
-            always @ (clock) begin
-                if (current == i && control) begin
-                    out[i] = in[i] ^ gamma;
-                end
-            end
-        end
-    endgenerate
-    
+    always @ (clock) begin
+        out = (control && !reset) ? in ^ gamma : 0;
+    end
 
     always @ (clock) begin
         next_clock = clock;
