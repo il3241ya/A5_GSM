@@ -8,12 +8,15 @@ module rcloss #(
     input [KEYLEN + FRAMENUMLEN - 1:0] seq,
     input clock,
     input reset,
-    output exposed
+    input majority,
+    output exposed,
+    output sync
 );
     integer counter;
     reg[REGLEN - 1:0] register;
 
     assign exposed = register[0];
+    assign sync = register[SYNCBITPOS];
 
     always @ (posedge reset) begin
         counter = 0;
@@ -23,15 +26,17 @@ module rcloss #(
     always @ (posedge clock) begin
         if (reset) begin
             register[REGLEN - 1] = seq[counter];
+            counter += 1;
         end
     end
 
-    reg rightmost;
-    reg[REGLEN:0] shifted;
-    always @ (posedge clock) begin
-        rightmost = ^(register & FEEDBACK) ^ 1;
-        shifted = register << 1;
-        register = {shifted[REGLEN - 1:1], rightmost};
+    wire rightmost;
+    wire[REGLEN - 1:0] shifted;
+
+    always @ (posedge clock) begin         
+        if (majority == register[SYNCBITPOS] || reset) begin
+            register = {register[REGLEN - 2:0], ^(register & FEEDBACK)};
+        end
     end
 
 endmodule

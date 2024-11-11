@@ -27,30 +27,39 @@ module cipher #(
     wire outR1;
     wire outR2;
     wire outR3;
+    wire syncR1;
+    wire syncR2;
+    wire syncR3;
 
     rcloss #(.FEEDBACK(MASK1), .REGLEN(REG1LEN), .SYNCBITPOS(SYNCBIT1)) loss1 (
         .seq(seq),
         .clock(next_clock),
         .reset(reset),
-        .exposed(outR1)
+        .majority(F),
+        .exposed(outR1),
+        .sync(syncR1)
     );
 
     rcloss #(.FEEDBACK(MASK2), .REGLEN(REG2LEN), .SYNCBITPOS(SYNCBIT2)) loss2 (
         .seq(seq),
         .clock(next_clock),
         .reset(reset),
-        .exposed(outR2)
+        .majority(F),
+        .exposed(outR2),
+        .sync(syncR2)
     );
 
     rcloss #(.FEEDBACK(MASK3), .REGLEN(REG3LEN), .SYNCBITPOS(SYNCBIT3)) loss3 (
         .seq(seq),
         .clock(next_clock),
         .reset(reset),
-        .exposed(outR3)
+        .majority(F),
+        .exposed(outR3),
+        .sync(syncR3)
     );
 
     assign gamma = outR1 ^ outR2 ^ outR3;
-    assign F = outR1 & outR2 | outR1 & outR3 | outR2 & outR3;
+    assign F = syncR1 & syncR2 | syncR1 & syncR3 | syncR2 & syncR3;
 
     always @ (clock) begin
         next_clock = 0;
