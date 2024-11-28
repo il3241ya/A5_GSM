@@ -15,7 +15,7 @@ module rcloss #(
     integer counter;
     reg[REGLEN - 1:0] register;
 
-    assign exposed = register[0];
+    assign exposed = register[REGLEN - 1];
     assign sync = register[SYNCBITPOS];
 
     always @ (posedge reset) begin
@@ -25,13 +25,10 @@ module rcloss #(
 
     always @ (posedge clock) begin
         if (reset) begin
-            register[REGLEN - 1] = seq[counter];
+            register[0] ^= seq[counter];
             counter += 1;
         end
     end
-
-    wire rightmost;
-    wire[REGLEN - 1:0] shifted;
 
     always @ (posedge clock) begin         
         if (majority == register[SYNCBITPOS] || reset) begin

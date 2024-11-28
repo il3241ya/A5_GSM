@@ -1,0 +1,20 @@
+cmake_minimum_required(VERSION 3.19)
+
+project(a5-gsm LANGUAGES C CXX)
+
+cmake_policy(SET CMP0114 NEW)
+
+find_package(verilator REQUIRED)
+find_package(GTest REQUIRED)
+
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+set(CMAKE_C_STANDARD 17)
+set(CMAKE_C_EXTENSIONS OFF)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+add_subdirectory(src)

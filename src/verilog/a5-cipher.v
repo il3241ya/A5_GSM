@@ -20,8 +20,6 @@ module cipher #(
     input reset,
     output reg out
 );
-    reg next_clock;
-
     wire F;
     wire gamma;
     wire outR1;
@@ -33,7 +31,7 @@ module cipher #(
 
     rcloss #(.FEEDBACK(MASK1), .REGLEN(REG1LEN), .SYNCBITPOS(SYNCBIT1)) loss1 (
         .seq(seq),
-        .clock(next_clock),
+        .clock(clock),
         .reset(reset),
         .majority(F),
         .exposed(outR1),
@@ -42,7 +40,7 @@ module cipher #(
 
     rcloss #(.FEEDBACK(MASK2), .REGLEN(REG2LEN), .SYNCBITPOS(SYNCBIT2)) loss2 (
         .seq(seq),
-        .clock(next_clock),
+        .clock(clock),
         .reset(reset),
         .majority(F),
         .exposed(outR2),
@@ -51,7 +49,7 @@ module cipher #(
 
     rcloss #(.FEEDBACK(MASK3), .REGLEN(REG3LEN), .SYNCBITPOS(SYNCBIT3)) loss3 (
         .seq(seq),
-        .clock(next_clock),
+        .clock(clock),
         .reset(reset),
         .majority(F),
         .exposed(outR3),
@@ -61,16 +59,8 @@ module cipher #(
     assign gamma = outR1 ^ outR2 ^ outR3;
     assign F = syncR1 & syncR2 | syncR1 & syncR3 | syncR2 & syncR3;
 
-    always @ (clock) begin
-        next_clock = 0;
-    end
-
-    always @ (clock) begin
+    always @ (posedge clock) begin
         out = (control && !reset) ? in ^ gamma : 0;
-    end
-
-    always @ (clock) begin
-        next_clock = clock;
     end
 
 endmodule
