@@ -12,7 +12,7 @@
 
 #define CLOCK(context, model)       \
     model->clock = !model->clock;   \
-    context->timeInc(1);            \
+    context->timeInc(100'000'000);  \
     model->eval()
 
 std::ostream& print_byte(std::ostream& os, char byte) {
@@ -31,16 +31,9 @@ std::size_t roundToBytes(std::size_t bits) {
 
 template<int Width>
 void fillSeq(VlWide<Width>& seq, const char* key, std::size_t frame) {
-    for (std::size_t i = 0; i < A5_KEY_LEN + A5_FRAME_LEN; ++i) {
-        if (i < A5_KEY_LEN) {
-            seq[i / (sizeof(std::size_t) * 8)] |= \
-                key[i / sizeof(char)] & (1 << (i % sizeof(char)))
-                >> (i % sizeof(char)) << (i % (sizeof(std::size_t) * 8));
-        } else {
-            seq[i / (sizeof(std::size_t) * 8)] |= \
-                frame & (1 << (i - A5_KEY_LEN));
-        }
-    }
+    std::memcpy(&seq[0], key, sizeof(seq[0]));
+    std::memcpy(&seq[1], key + sizeof(seq[0]), sizeof(seq[1]));
+    std::memcpy(&seq[2], &frame, sizeof(seq[2]));
 }
 
 int main(int argc, char** argv) {
@@ -78,6 +71,8 @@ int main(int argc, char** argv) {
     std::cout << "- keys generated: \n";
     for (i = 0; i < testsCount; ++i) {
         std::cout << "-- " << keys[i] << '\n';
+        std::memset(keys[i], 0, A5_KEY_LEN / 8);
+        keys[i][0] = 2; 
     }
 
     if (int error = a5_gen_opentext(&opentexts, testsCount, seed); error != A5_ERR_OK) {
@@ -100,8 +95,8 @@ int main(int argc, char** argv) {
         std::size_t keyLen = roundToBytes(A5_KEY_LEN);
         std::size_t chunkLen = roundToBytes(A5_CHUNK_LEN);
 
-        char* currentKey = keys[i];
-        char* currentOpentext = opentexts[i];
+        char* currentKey = keys[testsCount - i - 1];
+        char* currentOpentext = opentexts[testsCount - i - 1];
 
         // set opentext to 0 to see generated masks
         // std::memset(currentOpentext, 0, chunkLen);
@@ -110,10 +105,12 @@ int main(int argc, char** argv) {
         auto result = std::make_unique<char[]>(chunkLen);
 
         // assign key & frame
-        const std::size_t frame = 1;
+        const std::size_t frame = 0;
 
         // run library code first
         std::cout << "#Test " << testsCount - i << "\n";
+
+        a5_reset_state(state);
 
         if (int error = a5_cipher(
             state, currentKey, frame, currentOpentext, result.get()
@@ -136,14 +133,20 @@ int main(int argc, char** argv) {
         j = A5_KEY_LEN + A5_FRAME_LEN + A5_DRY_ITERS_COUNT + A5_CHUNK_LEN;
         // we fill 86 bits for seq first
         fillSeq<seqWidth>(model->seq, currentKey, frame);
+        std::cout << "- seq set: " 
+            << model->seq[0] << ' ' 
+            << model->seq[1] << ' ' 
+            << model->seq[2] << '\n';
+
         std::memset(result.get(), 0, chunkLen);
+
         while (j--) {
-            if (j >= A5_DRY_ITERS_COUNT + A5_CHUNK_LEN) {
+            if (j > A5_DRY_ITERS_COUNT + A5_CHUNK_LEN) {
                 model->reset = 1;
                 model->control = 0;
                 CLOCK(context, model);
                 CLOCK(context, model);
-            } else if (j >= A5_CHUNK_LEN) {
+            } else if (j > A5_CHUNK_LEN) {
                 model->reset = 0;
                 model->control = 0;
                 CLOCK(context, model);
@@ -151,10 +154,10 @@ int main(int argc, char** argv) {
             } else {
                 model->reset = 0;
                 model->control = 1;
-                model->in = currentOpentext[(A5_CHUNK_LEN - i) / 8] >> ((A5_CHUNK_LEN - i) % 8);
+                model->in = (currentOpentext[(A5_CHUNK_LEN - 1 - j) / 8] >> ((A5_CHUNK_LEN - 1 - j) % 8)) & 1;
                 CLOCK(context, model);
-                result[(A5_CHUNK_LEN - j) / 8] |= model->out << ((A5_CHUNK_LEN - j) % 8);
                 CLOCK(context, model);
+                result[(A5_CHUNK_LEN - 1 - j) / 8] |= model->out << ((A5_CHUNK_LEN - 1 - j) % 8); 
             }
         }
 
@@ -164,6 +167,17 @@ int main(int argc, char** argv) {
             print_byte(std::cout, result[j]) << ' ';
         }
         std::cout << std::dec << "\n";
+
+        if (int error = a5_decipher(
+            state, currentKey, frame, result.get(), currentOpentext
+        ); error != A5_ERR_OK) {
+            std::cout << "Error: decipher failed: " << a5_error_string((a5_error) error) << std::endl;
+            goto early_3;
+        }
+
+        std::cout << "- deciphering simulation result: ";
+        std::cout << "-- " << currentOpentext << '\n';
+
     }
 
     model->final();

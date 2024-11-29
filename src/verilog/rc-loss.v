@@ -9,31 +9,31 @@ module rcloss #(
     input clock,
     input reset,
     input majority,
-    output exposed,
-    output sync
+    output reg exposed,
+    output reg sync
 );
     integer counter;
     reg[REGLEN - 1:0] register;
 
-    assign exposed = register[REGLEN - 1];
-    assign sync = register[SYNCBITPOS];
-
-    always @ (posedge reset) begin
-        counter = 0;
-        register = {REGLEN {1'b0}};
-    end
-
     always @ (posedge clock) begin
         if (reset) begin
-            register[0] ^= seq[counter];
-            counter += 1;
-        end
-    end
-
-    always @ (posedge clock) begin         
-        if (majority == register[SYNCBITPOS] || reset) begin
+            if (counter == KEYLEN + FRAMENUMLEN - 1) begin
+                register = {REGLEN {1'b0}};
+                counter = 0;
+            end
+            register[0] = register[0] ^ seq[counter];
+            counter = counter + 1;
+            register = {register[REGLEN - 2:0], ^(register & FEEDBACK)};
+        end else if (majority == register[SYNCBITPOS]) begin
             register = {register[REGLEN - 2:0], ^(register & FEEDBACK)};
         end
+        exposed = register[REGLEN - 1];
+        sync = register[SYNCBITPOS];
+    end
+
+    initial begin
+        counter = 0;
+        register = {REGLEN {1'b0}};
     end
 
 endmodule

@@ -58,9 +58,6 @@ module cipher #(
 
     assign gamma = outR1 ^ outR2 ^ outR3;
     assign F = syncR1 & syncR2 | syncR1 & syncR3 | syncR2 & syncR3;
-
-    always @ (posedge clock) begin
-        out = (control && !reset) ? in ^ gamma : 0;
-    end
+    assign out = (control && !reset) ? in ^ gamma : 0;
 
 endmodule

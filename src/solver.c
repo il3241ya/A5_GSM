@@ -13,7 +13,7 @@
 #define A5_REG2_CLOCKING_BIT_POS 10
 #define A5_REG3_CLOCKING_BIT_POS 10
 
-#define A5_REG1_MASK 0x07200
+#define A5_REG1_MASK 0x007200
 #define A5_REG2_MASK 0x300000
 #define A5_REG3_MASK 0x700100
 
@@ -71,7 +71,7 @@ int get_reg_out_bit(size_t reg, size_t size) {
 
 /* gets majority bit for register */
 int get_reg_maj_bit(size_t reg, size_t maj_pos) {
-    return (reg & (1 << maj_pos)) >> maj_pos;
+    return get_bit_from_int(reg, maj_pos);
 }
 
 struct a5_cipher_state* a5_new_cipher_state() {
@@ -99,10 +99,6 @@ int a5_write_key(struct a5_cipher_state* state, const char* key) {
 
 int a5_write_frame(struct a5_cipher_state* state, size_t frame) {
     assert(state);
-
-    if (frame < 1) {
-        return A5_ERR_FRAME_INVALID;
-    }
 
     int i = A5_FRAME_LEN;
     while (i--) {
@@ -183,8 +179,8 @@ int a5_cipher(
         }
 
         if (i < A5_CHUNK_LEN) {
-            int cipher_bit = get_bit_from_array(opentext, i);
-            write_bit_to_pos(ciphertext, cipher_bit ^ bit, i);
+            int cipher_bit = get_bit_from_array(opentext, A5_CHUNK_LEN - 1 - i);
+            write_bit_to_pos(ciphertext, cipher_bit ^ bit, A5_CHUNK_LEN - 1 - i);
         }
     }
 

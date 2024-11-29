@@ -40,8 +40,8 @@ int a5_gen_keys(char*** keys, size_t count, unsigned int seed) {
         word_index = rand() % A5_DICTIONARY_LEN;
         word_len = strlen(dictionary[word_index]);
 
-        gen[i] = calloc(round_to_bytes(A5_KEY_LEN), sizeof(char));
-        memcpy(gen[i], dictionary[word_index], word_len);
+        gen[count - i - 1] = calloc(round_to_bytes(A5_KEY_LEN), sizeof(char));
+        memcpy(gen[count - i - 1], dictionary[word_index], word_len);
     }
 
     *keys = gen;
